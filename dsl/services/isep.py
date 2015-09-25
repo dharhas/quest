@@ -3,9 +3,9 @@
 """
 from .base import DataServiceBase
 from geojson import Feature, Point, FeatureCollection
-import numpy as np
-import pandas as pd
-import re
+#import numpy as np
+#import pandas as pd
+#import re
 import os
 from .. import util
 from .. import isep_mong
@@ -15,75 +15,85 @@ DEFAULT_FILE_PATH = 'isep/'
 
 class ISEPBase(DataServiceBase):
     def register(self):
+        
         self.metadata = {
                     'provider': {
                         'abbr': 'ISEP',
                         'name': 'Integrated Simulation Environment Phenomenology',
                     },
-                    'display_name': '',
-                    'service': '',
-                    'description': '',
+                    'display_name': 'ISEP LIDAR',
+                    'service': 'ISEP',
+                    'description': 'ISEP Description',
                     'geographical area': 'United States of America',
                     'bounding_boxes': [[-124.7099609, 24.54233398, -66.98701171, 49.36967773]],
                     'geotype': 'points',
-                    'datatype': ''
+                    'datatype': 'LIDAR'
                 }
 
-    def get_locations(self, locations=None, bounding_box=None, location_type="name"):
+    def get_locations(self, locations=None, bounding_box=None, location_type="name", data_type="lidar"):
 
+        
         driver = isep_mong.MongoDriver()
         sites = []
         
         if locations:
-            sites = driver.get_sites_location(locations, location_type)
+            sites = driver.get_sites_location(locations, location_type, data_type.upper())
         else:
             if bounding_box is None:
                 bounding_box = [-124.7099609, 24.54233398, -66.98701171, 49.36967773]
 
-            sites = driver.get_sites_BoundingBox(bounding_box)
+            sites = driver.get_sites_BoundingBox(bounding_box, data_type.upper())
             
-                    
         features = []
         for site in sites:
             
             files = []
-            files = site["files"]
+            files = site.get("files", '')
             
             for f in files:
                 fileproperties = {
-                                'file name': f['file name'],
-                                'server': f['server'],
-                                'file location': f['file location'],
-                                'file format': f['file format'],
-                                'cols': f['cols'],
-                                'delimited type': f['delimited type'],
-                                'first line': f['first line'],
-                                'first line def': f['first line def'],
-                                'col num': f['col num'],
-                                'first line def': f['first line def'],
-                                'vertices': f['vertices'],
-                                'X': f['X'],                                
-                                'Y': f['Y'],
-                                'Z': f['Z'],
-                                'location': f['location'],
-                                'header row one': f['header row one'],
-                                'header row two': f['header row two'],
-                                'header row three': f['header row three']
+                                'file name': f.get("file name", ""),
+                                'server': f.get("server", ""),
+                                'file location': f.get("file location", ""),
+                                'file format': f.get("file format", ""),
+                                'cols': f.get("cols", ""),
+                                'delimited type': f.get("delimited type", ""),
+                                'first line': f.get("first line", ""),
+                                'first line def': f.get("first line def", ""),
+                                'col num': f.get("col num", ""),
+                                'first line def': f.get("first line def", ""),
+                                'vertices': f.get("vertices", ""),
+                                'X': f.get("X", ""),                                
+                                'Y': f.get("Y", ""),
+                                'Z': f.get("Z", ""),
+                                'location': f.get("location", ""),
+                                'header row one': f.get("header row one", ""),
+                                'header row two': f.get("header row two", ""),
+                                'header row three': f.get("header row three", ""),
                 }     
                 
                 
                 siteproperties = {
-                                'name': site['name'],
-                                'subsite': site['subsite'],
-                                'data type': site['data type'],
-                                'collection type': site['collection type'],
-                                site['data type'].lower() + ' type': site[site['data type'].lower() + ' type'],
+                                'name': site.get("name", ""),
+                                'subsite': site.get("subsite", ""),
+                                'data type': site.get("data type", ""),
+                                'collection type': site.get("collection type", ""),
+                                site.get("data type", "").lower() + ' type': site.get(site.get("data type", "").lower() + " type", ""),
                                 'file properties' : fileproperties
                             }
     
-                feature = Feature(id=site['_id'],
-                                geometry=Point((float(f['location'][1]),
-                                                float(f['location'][0]))),
+                lat = 0
+                lon = 0
+                
+                if "location" in f.keys():
+                    lat = f.get("location", "")[0]
+                    lon = f.get("location", "")[1]
+                    
+                featureId =  f.get("file name", "") + ' - ' + site.get("name", "")
+                
+                feature = Feature(id=featureId,
+                                geometry=Point((float(lon),
+                                                float(lat))),
                                 properties=siteproperties,
                             )
                 features.append(feature)
@@ -107,6 +117,10 @@ class ISEPBase(DataServiceBase):
                     "type": "string",
                     "description": "a string stating alternate criteria to search: e.g. 'subsite'",
                     },
+                "data_type": {
+                    "type": "string",
+                    "description": "a string detailing which data type is searched: e.g. 'lidar'",
+                    },
                 "all_parameters_required": {
                     "type": "boolean",
                     "description": "If true only locations where all parameters exist will be shown"
@@ -116,7 +130,25 @@ class ISEPBase(DataServiceBase):
         }
         return schema
 
-    def get_data_options(self, **kwargs):
+    def get_data(self, locations, path=None, location_type="name", data_type="lidar"):
+        
+        
+         if locations is None:
+            raise ValueError("A location needs to be supplied.")
+         if not path:
+            path = util.get_dsl_dir()
+            
+         path = os.path.join(path, DEFAULT_FILE_PATH)         
+         util.mkdir_if_doesnt_exist(path)
+         data_files = {}
+         
+
+         
+         
+         
+         return data_files
+
+    def get_data_options(self):
         schema = {
             "title": "ISEP Download Options",
             "type": "object",
@@ -124,13 +156,28 @@ class ISEPBase(DataServiceBase):
                 "locations": {
                     "type": "string",
                     "description": "Optional single or comma delimited list of location identifiers",
-                    }
+                    },
+                "path": {
+                    "type": "string",
+                    "description": "Path where data will be downloaded to.",
+                    },
+                "location_type": {
+                    "type": "string",
+                    "description": "a string stating alternate criteria to search: e.g. 'subsite'",
+                    },
+                "data_type": {
+                    "type": "string",
+                    "description": "a string detailing which data type is searched: e.g. 'lidar'",
+                    },
+                "all_parameters_required": {
+                    "type": "boolean",
+                    "description": "If true only locations where all parameters exist will be shown"
+                }
             },
         }
         return schema
-
-    def get_data(self, locations, parameters=None):
         
-        data_files = {}
-        return data_files
-
+        
+    def provides(self):
+        return ['lidar', 'met', 'ADH']
+    

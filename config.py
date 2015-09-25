@@ -10,6 +10,7 @@ services = {
         'usgs-eros-nlcd2006': 'dsl.services.usgs_eros:UsgsErosNlcd2006',
         'noaa-coops': 'dsl.services.coops_pyoos:CoopsPyoos',
         'noaa-ndbc': 'dsl.services.ndbc_pyoos:NdbcPyoos',
+        'isep-lidar': 'dsl.services.isep:ISEPBase',
     }
 
 filters = {

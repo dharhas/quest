@@ -1,17 +1,17 @@
-import argparse
-import json
-from pymongo import GEO2D
-from pprint import pprint
+#import argparse
+#import json
+#from pymongo import GEO2D
+#from pprint import pprint
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from pymongo.errors import OperationFailure
 import sys
-import os
-import uuid
-from collections import OrderedDict
-import xlrd
-from bson import BSON
-from bson import json_util
+#import os
+#import uuid
+#from collections import OrderedDict
+#import xlrd
+#from bson import BSON
+#from bson import json_util
 
 class MongoDriver(object):
 
@@ -20,8 +20,7 @@ class MongoDriver(object):
             this will probably be passed as an argument when people are only
             getting permission for certain databases """
 
-        self.username = "lboler"
-        self.password = "isep2014"
+        
         self.host = "134.164.150.36"
         self.dbase = "Data"
         self.db_conn = None
@@ -51,7 +50,7 @@ class MongoDriver(object):
 
         return self.coll_conn
 
-    def get_sites_location(self, locations=None, location_type):
+    def get_sites_location(self, locations=None, location_type="name", data_type="LIDAR"):
         """Get Locations associated with service.
 
         Take a series of query parameters and return a list of 
@@ -67,13 +66,13 @@ class MongoDriver(object):
 
             name = location_type
             
-            sites = self.coll_conn.find({name:{ "$in" : locations}})
+            sites = self.coll_conn.find({name:{ "$in" : locations}, "data type":data_type})
         else:
             sites = self.coll_conn.find()            
         
         return sites
             
-    def get_sites_BoundingBox(self, bounding_box=None):
+    def get_sites_BoundingBox(self, bounding_box=None, data_type="LIDAR"):
         """Get Locations associated with service.
 
         Take a series of query parameters and return a list of 
@@ -86,6 +85,7 @@ class MongoDriver(object):
         sites = []
         
         if bounding_box:
+            """sites = self.coll_conn.find({"files.location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}} , "data type":data_type})"""
             sites = self.coll_conn.find({"files.location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}}})
         else:
             sites = self.coll_conn.find()            

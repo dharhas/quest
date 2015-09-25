@@ -60,6 +60,7 @@ setup(
         'pyyaml',
         'pyoos',
         'matplotlib>=1.4.0',
+        'pymongo>=2.8',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
