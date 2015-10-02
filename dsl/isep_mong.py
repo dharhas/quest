@@ -20,7 +20,7 @@ class MongoDriver(object):
             this will probably be passed as an argument when people are only
             getting permission for certain databases """
 
-        
+       
         self.host = "134.164.150.36"
         self.dbase = "Data"
         self.db_conn = None
@@ -85,8 +85,8 @@ class MongoDriver(object):
         sites = []
         
         if bounding_box:
-            """sites = self.coll_conn.find({"files.location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}} , "data type":data_type})"""
-            sites = self.coll_conn.find({"files.location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}}})
+            sites = self.coll_conn.find({"files.location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}} , "data type":data_type})
+            '''sites = self.coll_conn.find({"files.location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}}})'''
         else:
             sites = self.coll_conn.find()            
         

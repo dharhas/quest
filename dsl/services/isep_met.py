@@ -11,9 +11,9 @@ from .. import util
 from .. import isep_mong
 
 # default file path (appended to collection path)
-DEFAULT_FILE_PATH = 'isep/lidar/'
+DEFAULT_FILE_PATH = 'isep/met/'
 
-class ISEPBase(DataServiceBase):
+class ISEPMetBase(DataServiceBase):
     def register(self):
         
         self.metadata = {
@@ -21,16 +21,16 @@ class ISEPBase(DataServiceBase):
                         'abbr': 'ISEP',
                         'name': 'Integrated Simulation Environment Phenomenology',
                     },
-                    'display_name': 'ISEP LIDAR',
+                    'display_name': 'ISEP MET',
                     'service': 'ISEP',
                     'description': 'ISEP Description',
                     'geographical area': 'United States of America',
                     'bounding_boxes': [[-124.7099609, 24.54233398, -66.98701171, 49.36967773]],
                     'geotype': 'points',
-                    'datatype': 'LIDAR'
+                    'datatype': 'MET'
                 }
 
-    def get_locations(self, locations=None, bounding_box=None, location_type="name", data_type="lidar"):
+    def get_locations(self, locations=None, bounding_box=None, location_type="name", data_type="met"):
 
         
         driver = isep_mong.MongoDriver()
@@ -130,7 +130,7 @@ class ISEPBase(DataServiceBase):
         }
         return schema
 
-    def get_data(self, locations, path=None, location_type="name", data_type="lidar"):
+    def get_data(self, locations, path=None, location_type="name", data_type="met"):
         
         
          if locations is None:
@@ -179,5 +179,5 @@ class ISEPBase(DataServiceBase):
         
         
     def provides(self):
-        return ['lidar']
+        return ['met']
     

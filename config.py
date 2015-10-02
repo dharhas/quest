@@ -11,6 +11,7 @@ services = {
         'noaa-coops': 'dsl.services.coops_pyoos:CoopsPyoos',
         'noaa-ndbc': 'dsl.services.ndbc_pyoos:NdbcPyoos',
         'isep-lidar': 'dsl.services.isep:ISEPBase',
+        'isep-met': 'dsl.services.isep_met:ISEPMetBase',
     }
 
 filters = {
