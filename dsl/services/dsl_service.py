@@ -3,16 +3,13 @@
 """
 
 from .. import util
-from .base import DataServiceBase
-#import fiona
-from geojson import Feature, FeatureCollection, Point, Polygon, dump
-from random import random
+from .base import SingleFileBase
 import os
 import yaml
 
 
-class LocalService(DataServiceBase):
-    def __init__(self, path):
+class HttpDslService(SingleFileBase):
+    def __init__(self, url):
         self.register(path)
 
     def register(self, path):
