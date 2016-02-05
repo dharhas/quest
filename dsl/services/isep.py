@@ -65,13 +65,19 @@ class ISEPService(WebServiceBase):
         
         driver = isep_mong.MongoDriver()
         sites = []
-        features = []
         bounding_box = [-124.7099609, 24.54233398, -66.98701171, 49.36967773]
 
                
         sites = driver.get_sites_BoundingBox(bounding_box, service.upper())
         
-        return sites
+        features = pd.DataFrame(sites)
+        features.index = features['id']
+        features['geom_type'] = 'Point'
+        features['parameters'] = ''
+        features['file_format'] = ''
+        
+        return features
+        
         '''
         
         features = pd.DataFrame(sites)

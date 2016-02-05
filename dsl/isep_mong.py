@@ -116,9 +116,9 @@ class MongoDriver(object):
         comma delimited set of 4 numbers        
         """
         
-        if data_type is "LIDAR":
+        if data_type == "LIDAR":
             return self.get_LIDAR_sites(bounding_box)
-        elif data_type is "MET":
+        elif data_type == "MET":
             return self.get_MET_sites(bounding_box)
         else :
             return {}
