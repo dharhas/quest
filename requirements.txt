@@ -13,4 +13,5 @@ pyyaml
 matplotlib
 click
 werkzeug
+pymongo
 stevedore

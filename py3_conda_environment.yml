@@ -26,6 +26,7 @@ dependencies:
     - matplotlib>=1.4.0
     - click
     - werkzeug
+    - pymongo=2.8
     - pip:
       - json-rpc
       - jsonrpc-requests

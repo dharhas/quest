@@ -23,6 +23,8 @@ class MongoDriver(object):
        
         self.host = "134.164.150.36"
         self.dbase = "Data"
+        self.username = "guest"
+        self.password = "guest"
         self.db_conn = None
         self.coll_conn = None
 
@@ -49,29 +51,61 @@ class MongoDriver(object):
             self.coll_conn = self.db_conn["Sites"]
 
         return self.coll_conn
-
-    def get_sites_location(self, locations=None, location_type="name", data_type="LIDAR"):
-        """Get Locations associated with service.
-
-        Take a series of query parameters and return a list of 
-        locations as a geojson python dictionary
         
-        locations : ``None`` or str,
-        comma separated list of location codes to fetch
-        """
-
-        sites = []
         
-        if locations:
+    def get_MET_sites(self, bounding_box=None):
+        
+        self.connect_to_collection()
+        if bounding_box is None:
+            bounding_box = [-124.7099609, 24.54233398, -66.98701171, 49.36967773]
 
-            name = location_type
+        returning = []             
+        sites = self.coll_conn.find({"files.location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}} , "data type":"MET"})
+
+        
+        for site in sites:
+            for fileItem in site["files"]:
+                item = {}
+                item["id"] = str(site["_id"])
+                item["file name"] = fileItem["file name"]
+                item["data type"] = site["data type"]
+                item["collection type"] = site["collection type"]
+                item["MET type"] = site["met type"]
+                item["site"] = site["name"]
+                item["subsite"] = site["subsite"]
+                item["latitude"] = fileItem["location"][0]
+                item["longitude"] = fileItem["location"][1]
             
-            sites = self.coll_conn.find({name:{ "$in" : locations}, "data type":data_type})
-        else:
-            sites = self.coll_conn.find()            
+                returning.append(item)
         
-        return sites
+        return returning
+        
+    def get_LIDAR_sites(self, bounding_box=None):
+        
+        self.connect_to_collection()
+        if bounding_box is None:
+            bounding_box = [-124.7099609, 24.54233398, -66.98701171, 49.36967773]
+
+        returning = []             
+        sites = self.coll_conn.find({"files.location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}} , "data type":"LIDAR"})
+
+        for site in sites:
+            for fileItem in site["files"]:
+                item = {}
+                item["id"] = str(site["_id"])
+                item["file name"] = fileItem["file name"]
+                item["data type"] = site["data type"]
+                item["collection type"] = site["collection type"]
+                item["lidar type"] = site["lidar type"]
+                item["site"] = site["name"]
+                item["subsite"] = site["subsite"]
+                item["latitude"] = fileItem["location"][0]
+                item["longitude"] = fileItem["location"][1]
             
+                returning.append(item)
+        
+        return returning
+
     def get_sites_BoundingBox(self, bounding_box=None, data_type="LIDAR"):
         """Get Locations associated with service.
 
@@ -81,14 +115,12 @@ class MongoDriver(object):
         bounding_box : ``None or str,
         comma delimited set of 4 numbers        
         """
-
-        sites = []
         
-        if bounding_box:
-            sites = self.coll_conn.find({"files.location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}} , "data type":data_type})
-            '''sites = self.coll_conn.find({"files.location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}}})'''
-        else:
-            sites = self.coll_conn.find()            
-        
-        return sites
-
+        if data_type is "LIDAR":
+            return self.get_LIDAR_sites(bounding_box)
+        elif data_type is "MET":
+            return self.get_MET_sites(bounding_box)
+        else :
+            return {}
+    
+    

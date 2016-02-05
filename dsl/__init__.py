@@ -11,4 +11,5 @@ from . import util, api
 import pbr.version
 
 # set version number
-__version__ = pbr.version.VersionInfo('dsl').version_string_with_vcs()
+#__version__ = pbr.version.VersionInfo('dsl').version_string_with_vcs()
+__version__ = '0.4-isep-dev'

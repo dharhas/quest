@@ -1,54 +1,97 @@
 """DSL wrapper for USGS NWIS Services
 
 """
-from .base import DataServiceBase
-from geojson import Feature, Point, FeatureCollection
-#import numpy as np
-#import pandas as pd
-#import re
+from .base import WebServiceBase
+from geojson import Feature, Point, FeatureCollection, dump
 import os
+import pandas as pd
 from .. import util
 from .. import isep_mong
 
 # default file path (appended to collection path)
-DEFAULT_FILE_PATH = 'isep/lidar/'
+# DEFAULT_FILE_PATH = 'isep/lidar/'
+DEFAULT_FILE_PATH = os.path.join('isep','lidar')
+CACHE_FILE = 'isep_metadata.json'
 
-class ISEPBase(DataServiceBase):
-    def register(self):
-        
+class ISEPService(WebServiceBase):
+    def _register(self):
         self.metadata = {
-                    'provider': {
-                        'abbr': 'ISEP',
-                        'name': 'Integrated Simulation Environment Phenomenology',
-                    },
-                    'display_name': 'ISEP LIDAR',
-                    'service': 'ISEP',
-                    'description': 'ISEP Description',
-                    'geographical area': 'United States of America',
-                    'bounding_boxes': [[-124.7099609, 24.54233398, -66.98701171, 49.36967773]],
-                    'geotype': 'points',
-                    'datatype': 'LIDAR'
-                }
+            'display_name': 'ISEP',
+            'description': 'ISEP Description',
+            'organization': {
+                'abbr': 'ISEP',
+                'name': 'Integrated Simulation Environment Phenomenology', 
+            },
+        }
+    
+    def _get_services(self):
+        return {
+            'LIDAR' : {
+                'display_name' : 'LIDAR',
+                'description' : 'A detection system that works on the principle of radar, but uses light from a laser',
+                'service_type' : 'geo-discrete',
+                'parameters' : ['none'],
+                'unmapped_parameters_available' : True,
+                'geom_type' : 'Point',
+                'datatype' : 'LIDAR',
+                'geographical_areas' : ['United States of America'],
+                'bounding_boxes': [(-124.7099609, 24.54233398, -66.98701171, 49.36967773)]   
+            },
+            'MET' : {
+                'display_name' : 'MET',
+                'description' : 'MET',
+                'service_type' : 'geo-discrete',
+                'parameters' : ['none'],
+                'unmapped_parameters_available' : True,
+                'geom_type' : 'Point',
+                'datatype' : 'MET',
+                'geographical_areas' : ['United States of America'],
+                'bounding_boxes': [(-124.7099609, 24.54233398, -66.98701171, 49.36967773)] 
+            },
+            'ADH' : {
+                'display_name' : 'ADH',
+                'description' : 'ADH',
+                'service_type' : 'geo-discrete',
+                'parameters' : ['none'],
+                'unmapped_parameters_available' : True,
+                'geom_type' : 'Point',
+                'datatype' : 'ADH',
+                'geographical_areas' : ['United States of America'],
+                'bounding_boxes': [(-124.7099609, 24.54233398, -66.98701171, 49.36967773)] 
+            }
+        }
 
-    def get_locations(self, locations=None, bounding_box=None, location_type="name", data_type="lidar"):
-
+    def _get_features(self, service):
         
         driver = isep_mong.MongoDriver()
         sites = []
-        
-        if locations:
-            sites = driver.get_sites_location(locations, location_type, data_type.upper())
-        else:
-            if bounding_box is None:
-                bounding_box = [-124.7099609, 24.54233398, -66.98701171, 49.36967773]
-
-            sites = driver.get_sites_BoundingBox(bounding_box, data_type.upper())
-            
         features = []
+        bounding_box = [-124.7099609, 24.54233398, -66.98701171, 49.36967773]
+
+               
+        sites = driver.get_sites_BoundingBox(bounding_box, service.upper())
+        
+        return sites
+        '''
+        
+        features = pd.DataFrame(sites)
+        features.index = features[]
+
+
+        features.index = features['_id']
+        features['geom_type'] = zip(features['longitude'], features['latitude'])
+        features['geom_coords'] = features['boxes'].apply(lambda x: [util.bbox2poly(*x[0].split(), reverse_order=True)])
+        coords = features['geom_coords'].apply(lambda x: pd.np.array(x).mean(axis=1))
+        features['longitude'] = coords.apply(lambda x: x.flatten()[0])
+        features['latitude'] = coords.apply(lambda x: x.flatten()[1])
+        features['download_url'] = features['links'].apply(lambda x: [link['href'] for link in x if link.get('type')=='application/zip'][0])
+        
+        
         for site in sites:
             
             files = []
             files = site.get("files", '')
+            
             
             for f in files:
                 fileproperties = {
@@ -99,7 +142,11 @@ class ISEPBase(DataServiceBase):
                 features.append(feature)
 
         return FeatureCollection(features)
+        '''
+        
+       
 
+    '''
     def get_locations_options(self): 
         schema = {
             "title": "Location Filters",
@@ -129,10 +176,14 @@ class ISEPBase(DataServiceBase):
             "required": None,
         }
         return schema
+    '''
 
-    def get_data(self, locations, path=None, location_type="name", data_type="lidar"):
+    def _download_dataset_options(self, service):
+        pass
+
+    def _download_dataset(self, service, feature, parameter):
         
-        
+         '''
          if locations is None:
             raise ValueError("A location needs to be supplied.")
          if not path:
@@ -140,14 +191,18 @@ class ISEPBase(DataServiceBase):
             
          path = os.path.join(path, DEFAULT_FILE_PATH)         
          util.mkdir_if_doesnt_exist(path)
-         data_files = {}
+         '''
          
-
-         
-         
-         
+         data_files = {}        
          return data_files
+         
+    def _get_parameters(self, service, features=None):
+        return {
+            'parameters': ['none'],
+            'parameter_codes': ['none'],
+        }
 
+    '''
     def get_data_options(self):
         schema = {
             "title": "ISEP Download Options",
@@ -176,8 +231,8 @@ class ISEPBase(DataServiceBase):
             },
         }
         return schema
-        
-        
+    '''
+    '''
     def provides(self):
         return ['lidar']
-    
+    '''
