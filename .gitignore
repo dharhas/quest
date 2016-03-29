@@ -3,5 +3,6 @@ dsl.egg-info/
 dsl/.DS_Store
 .DS_Store
 docs/_build/
+__pycache__
 Lacy_Test.py
 Output.json

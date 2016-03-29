@@ -1,6 +1,5 @@
-"""DSL wrapper for USGS NWIS Services
+"""DSL wrapper for USGS NWIS Services."""
 
-"""
 from .base import WebServiceBase
 import concurrent.futures
 from functools import partial
@@ -17,7 +16,7 @@ class NwisService(WebServiceBase):
             'description': 'Services available through the USGS National Water Information System',
             'organization': {
                 'abbr': 'USGS',
-                'name': 'United States Geological Survey', 
+                'name': 'United States Geological Survey',
             },
         }
 
@@ -59,14 +58,21 @@ class NwisService(WebServiceBase):
         func = partial(_nwis_features, service=service)
         with concurrent.futures.ProcessPoolExecutor() as executor:
             sites = executor.map(func, _states())
-                
+
         sites = {k: v for d in sites for k, v in d.items()}
         df = pd.DataFrame.from_dict(sites, orient='index')
-        df['geom_type'] = 'Point'
+        df['_geom_type'] = 'Point'
         for col in ['latitude', 'longitude']:
             df[col] = df['location'].apply(lambda x: float(x[col]))
 
-        df['geom_coords'] = zip(df['longitude'], df['latitude'])
+        df.rename(columns={
+                    'code': '_service_id',
+                    'name': '_display_name',
+                    'latitude': '_latitude',
+                    'longitude': '_longitude',
+                    }, inplace=True)
+
+        df['_geom_coords'] = zip(df['_longitude'], df['_latitude'])
         return df
 
     def _get_parameters(self, service, features=None):
@@ -79,36 +85,45 @@ class NwisService(WebServiceBase):
         func = partial(_site_info, service=service)
         with concurrent.futures.ProcessPoolExecutor() as executor:
             data = executor.map(func, chunks)
-        
-        data = pd.concat(data, ignore_index=True)
-        data.rename(columns={'parm_cd': 'parameter_code', 'site_no': 'feature_id', 'count_nu': 'count'}, inplace=True)
-        data = data[pd.notnull(data['parameter_code'])]
-        data['parameter'] = data['parameter_code'].apply(lambda x: self._parameter_map(service).get(x))
-        data = data[['parameter', 'parameter_code', 'feature_id', 'begin_date', 'end_date', 'count']]
 
+        data = pd.concat(data, ignore_index=True)
+        data['_parameter_code'] = data['parm_cd'] + ':' + data['stat_cd']
+        data['_external_vocabulary'] = 'USGS-NWIS'
+        data.rename(columns={'site_no': '_service_id', 'count_nu': '_count'}, inplace=True)
+        data = data[pd.notnull(data['_parameter_code'])]
+        data['_parameter'] = data['_parameter_code'].apply(lambda x: self._parameter_map(service).get(x))
         pm_codes = _pm_codes()
-        data['description'] = data['parameter_code'].apply(lambda x: pm_codes.ix[x]['SRSName'] if x in pm_codes.index else '')
-        data['unit'] = data['parameter_code'].apply(lambda x: pm_codes.ix[x]['parm_unit'] if x in pm_codes.index else '')
+        data['_description'] = data['parm_cd'].apply(lambda x: pm_codes.ix[x]['SRSName'] if x in pm_codes.index else '')
+        data['_unit'] = data['parm_cd'].apply(lambda x: pm_codes.ix[x]['parm_unit'] if x in pm_codes.index else '')
+        cols = ['_parameter', '_parameter_code', '_external_vocabulary',
+                '_service_id', '_description', 'begin_date',
+                'end_date', '_count',
+                ]
+        data = data[cols]
+
+        # datasets need to have required dsl metadata and external metadata
+        # need to keep track of units/data classification/restrictions
         return data
 
 
     def _parameter_map(self, service):
         return {
             '00060': 'streamflow',
+            '00060:00003': 'streamflow:mean:daily',
             '00065': 'gage_height',
             '00010': 'water_temperature',
+            '00010:00001': 'water_temperature:daily:min',
+            '00010:00002': 'water_temperature:daily:max',
+            '00010:00003': 'water_temperature:daily:mean',
         }
 
 
-    def _download_dataset(self, feature, parameter, path, start=None, end=None, period=None):
-        
+    def _download(self, service, feature, save_path, dataset=None,
+                  parameter=None, start=None, end=None, period=None):
+
         if not any([start, end, period]):
-            period = 'P365D' #default to past 1yr of data
+            period = 'P365D'  # default to past 1yr of data
 
-        if path is None:
-            path = util.get_dsl_dir()
-
-        path = os.path.join(path, DEFAULT_FILE_PATH)
         io = util.load_drivers('io', 'ts-geojson')['ts-geojson'].driver
 
         parameter_codes = []
@@ -138,7 +153,7 @@ class NwisService(WebServiceBase):
                 if df.empty:
                     print('No data found, try different time period')
                     continue
-                    
+
                 df.index = self._make_index(df)
                 p, s = _as_nwis(code, invert=True)
                 if s:
@@ -158,9 +173,31 @@ class NwisService(WebServiceBase):
 
         return data_files
 
-
-    def _download_dataset_options(self, service):
-        pass
+    def _download_options(self, service):
+        schema = {
+            "title": "USGS NWIS Download Options",
+            "type": "object",
+            "properties": {
+                "start": {
+                    "type": "string",
+                    "description": "start date",
+                },
+                "end": {
+                    "type": "string",
+                    "description": "end date",
+                },
+                "period": {
+                    "type": "string",
+                    "description": "period date",
+                },
+            },
+        }
+        # smtk_filename = 'usgs-nwis-download.sbt'
+        # schema = {
+        #     "type": "smtk",
+        #     "smtk-path": pkg_resources.resource_filename('dsl.smtk', smtk_filename)
+        # }
+        return schema
 
 
 def _chunks(l, n=100):
@@ -179,10 +216,10 @@ def _nwis_parameters(site, service):
 
 def _states():
     return [
-        "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DC", "DE", "FL", "GA", 
-        "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", 
-        "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", 
-        "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", 
+        "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DC", "DE", "FL", "GA",
+        "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+        "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+        "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
         "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
     ]
 
@@ -201,13 +238,13 @@ def _pm_codes(update_cache=False):
     cache_file = os.path.join(util.get_cache_dir(), 'usgs_pmcodes.h5')
     if update_cache:
         pm_codes = _parse_rdb(url, index='parm_cd')
-    else:     
+    else:
         try:
             pm_codes = pd.read_hdf(cache_file, 'table')
         except:
             pm_codes = _parse_rdb(url, index='parm_cd')
             pm_codes.to_hdf(cache_file, 'table')
-    
+
     return pm_codes
 
 
@@ -223,7 +260,7 @@ def _site_info(sites, service):
 
 
 def _as_nwis(parameter, invert=False):
-    
+
     if ':' in parameter:
         p, s = parameter.split(':')
     else:
