@@ -14,7 +14,7 @@ Description of Settings:
 ======================= ======================================================================= ====================================
 Variable Name           Description                                                             Default
 ----------------------- ----------------------------------------------------------------------- ------------------------------------
-DSL_BASE_DIR            Base directory to save dsl data/metadata                                determined by appdirs python package 
+DSL_BASE_DIR            Base directory to save dsl data/metadata                                determined by appdirs python package
 DSL_CACHE_DIR           Location to save cached data/metadata                                   DSL_BASE_DIR/cache/
 DSL_PROJECT_FILE        Name of project metadata file                                           dsl_project.yml
 DSL_PROJECTS_INDEX_FILE Name of projects index file listing available projects and their paths  dsl_projects_index.yml
@@ -30,7 +30,7 @@ Design Goals:
   - Be able to easily convert a folder of structured data into a read-only user defined DSL service by adding a few metadata files
 
 
-Projects and Collections:  
+Projects and Collections:
   - A project is a folder that has some metadata and a set of collections
   - All collections in a project are saved in subdirectories of the main project folder for portability
   - Only one project can be active at a time, if none is specified a project called 'default' will be created and used
@@ -46,6 +46,17 @@ Services:
         - geo-seamless: This is for seamless datasets. There is no get_features function. Instead you pass a geometric feature (bbox, line etc) to the service and the data is extracted and returned (eg. GEBCO Global Bathymetry data)
         - geo-typical: This had features, by the features do not have geometry defined. Will function the same as geo-discrete. Will need to add a tag based search option.
 
+Parameters:
+  - external_name: what it is called in the service
+  - external_vocabulary: what the external vocab is
+  - vdatum: vertical datum if relevant
+  - long_name: display name
+  - standard_name: dsl name, i.e air_temperature:daily:max
+  - vocabulary: ERDC Environmental Simulator
+  - units: m
+  - concept: air_temperature
+  - frequency: hourly, daily, etc
+  - statistic: instantaneous, mean, min, max etc
 
 Example Directory Structure::
 
@@ -56,14 +67,14 @@ Example Directory Structure::
         myproject_1/                        # example project called myproject_1
             dsl_project.yml                 # project metadata
             mycollection_1/                 # example collection inside myproject_1
-                dsl_collection.yml          # collection metadata
+                dsl.yml                     # collection metadata
                 features.h5                 # master list of features inside collection, can also be csv, geojson
                 parameters.yml              # file to keep track of available parameters, download status, versions of downloaded data etc
                 temperature/                # folder for all temperature data in mycollection_1
                     feature_1/              #   folder for temperature data at feature_1 (feature_1 coords & metadata are in the master features.h5)
                         66a4e39d            #       temperature datasets at feature_1
                         f974a0c1            #       these are different versions of the same dataset, the last one is the final
-                        203a91e3            #       the versioning and applyed filters metadata is tracked in dsl_collection.yml
+                        203a91e3            #       the versioning and applied filters metadata is tracked in dsl_collection.yml
                     feature_2/
                 precipitation/
                     feature_1/
@@ -72,11 +83,12 @@ Example Directory Structure::
                 adh/
                     feature_5/              # directory containing adh model grid defined by a polygon called feature_5
                     feature_6/              # directory containing adh model grid defined by a polygon called feature_6
+                timeseries/
+                    66a4e39d
+                vitd-terrain/
+                raster/
 
     /some_other_location/myproject_2/       # another project listed in dsl_projects_index.yml but not in the DSL_BASE_DIR
         dsl_project.yml
         mycollection_1/
         mycollection_2/
-
-
-

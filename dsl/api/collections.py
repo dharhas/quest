@@ -1,119 +1,123 @@
-"""API functions related to Collections
-
-"""
+"""API functions related to Collections."""
 from __future__ import print_function
 import datetime
 from jsonrpc import dispatcher
 from .. import util
+from . import db
+from .projects import get_active_project, get_projects, active_db
 import os
 import pandas as pd
 import shutil
-import yaml
-
-
-COLLECTION_METADATA_FILE = 'dsl.yml'
 
 
 @dispatcher.add_method
 def delete_from_collection(collection, uris):
-    """Remove uris from collection
+    """Remove uris from collection.
 
     TODO
     """
     uris = util.listify(uris)
     for uri in uris:
         _delete_from_collection(collection, uri)
-    
+
     return
 
 
 @dispatcher.add_method
-def get_collections():
+def get_collections(metadata=None):
     """Get available collections.
 
     Collections are folders on the local disk that contain downloaded or created data
     along with associated metadata.
 
+    args:
+        metadata (bool, optional):
+            Optionally return collection metadata
+
     Returns
     -------
-    collections (dict): Available collections keyed by the collection uid  
+    collections (list or dict):
+        Available collections
     """
-    collections = {}
-    for uid, collection in _load_collections().iteritems():
-        folder = collection['folder']
-        path = os.path.join(util.get_data_dir(), folder)
 
-        metadata = _load_collection(uid)['metadata']
-        metadata.update({
-            'uid': uid,
-            'folder': path,
-        })
-        collections[uid] = metadata
+    collections = _load_collections()
+    collections = {k: util.to_metadata(v) for k, v in collections.items()}
+    if not metadata:
+        collections = collections.keys()
+
     return collections
 
 
-@dispatcher.add_method     
-def new_collection(uid, display_name=None, metadata={}, folder=None):
-    """Create a new collection
+@dispatcher.add_method
+def new_collection(name, display_name=None, description=None, metadata=None):
+    """Create a new collection.
 
-    Create a new collection by creating a new folder and placing a yaml
-    file in the folder for dsl metadata and adding a reference to the 
-    master collections metadata folder.
+    Create a new collection by creating a new folder in project directory
+    and adding collection metadata in project database.
 
     Args:
-        uid (string): uid of the collection used in all dsl function calls,
-            must be unique.
-        display_name (string, optional): Display name for collection, default is uid
-        metadata (dict, optional): metadata values, difault is empty dict
-        folder (string, optional): folder in which to save collection, default is a folder 
-            named the same as the uid
+        name (string): name of the collection used in all dsl function calls,
+            must be unique. Will also be the folder name of the collection.
+        display_name (string, optional): Display name for collection.
+        description (string, optional): Description of collection.
+        metadata (dict, optional): user defined metadata
 
     Returns:
-        A dict representing the collection keyed on uid
+        A dict representing the collection keyed on name
     """
-
-    uid = uid.lower()
+    name = name.lower()
     collections = _load_collections()
-    if uid in collections.keys():
-        raise ValueError('Collection %s already exists, please use a unique name', uid)
+    if name in collections:
+        raise ValueError('Collection %s already exists' % name)
 
-    if folder is None:
-        folder = uid
-    
-    path = os.path.join(util.get_data_dir(), folder)
+    if display_name is None:
+        display_name = name
+
+    if description is None:
+        description = ''
+
+    if metadata is None:
+        metadata = {}
+
+    path = os.path.join(_get_project_dir(), name)
     util.mkdir_if_doesnt_exist(path)
-    collections.update({uid: {'folder': folder}})
-    _write_collections(collections)
-    
-    metadata.update({
-        'display_name': metadata.get('display_name', uid),
-        'description': metadata.get('description', None),
+
+    dsl_metadata = {
+        'type': 'collection',
+        'display_name': display_name,
+        'description': description,
         'created_on': datetime.datetime.now().isoformat(),
-    })
-    collection = {'metadata': metadata, 'features': 'features.h5'}
-    _write_collection(uid, collection)
-
-    return collection
+    }
+    db.upsert(active_db(), 'collections', name, dsl_metadata, metadata)
+    return _load_collection(name)
 
 
 @dispatcher.add_method
-def update_collection(uid, metadata):
+def update_collection(name, display_name=None, description=None, metadata=None):
     """Update metadata of collection.
+
+    TODO - REPLACE WITH GENERIC UPDATE METADATA CALL
     """
-    collections = _load_collections()
+    c = _load_collection(name)
 
-    if uid not in list(collections.keys()):
-        print('Collection not found')
-        return {}
+    if display_name is not None:
+        c['metadata'].update({'_display_name': display_name})
 
-    collections[uid].update(metadata)
-    _write_collections(collections)
-    return collections[uid]
+    if description is not None:
+        c['metadata'].update({'_description': description})
+
+    if metadata is not None:
+        c['metadata'].update(metadata)
+
+    db.upsert(active_db(), 'collections', name, dsl_metadata, metadata)
+    return c
 
 
 @dispatcher.add_method
-def delete_collection(uid, delete_data=True):
-    """delete a collection
+def delete_collection(name, delete_data=True):
+    """delete a collection.
+
+    TODO FIX THIS TO WORK WITH DB
 
     Deletes a collection from the collections metadata file.
     Optionally deletes all data under collection.
@@ -129,39 +133,30 @@ def delete_collection(uid, delete_data=True):
         Returns
         -------
         collections : dict,
-            A python dict representation of the list of available collections, 
+            A python dict representation of the list of available collections,
             the updated collections list is also written to a json file.
     """
     collections = _load_collections()
 
-    if uid not in list(collections.keys()):
-        print('Collection not found')
-        return collections
+    if name not in collections:
+        raise ValueError('Collection %s not found' % name)
 
     if delete_data:
-        path = collections[uid]['path']
+        path = os.path.join(_get_project_dir(), name)
         if os.path.exists(path):
             print('deleting all data under path:', path)
             shutil.rmtree(path)
 
-    print('removing %s from collections' % uid)
-    del collections[uid]
+    print('removing %s from collections' % name)
+    collections.remove(name)
     _write_collections(collections)
     return collections
 
 
-def _collection_features_file(collection):
-    collection = _load_collections().get(collection)
-    if collection is None:
-        raise ValueError('Collection Not Found')
-
-    folder = collection['folder']
-    path = os.path.join(util.get_data_dir(), folder)
-
-    return os.path.join(path, 'features.h5')
-
-
 def _read_collection_features(collection):
+    """
+    TODO REPLACE WITH GENERIC GET FEATURES
+    """
     features_file = _collection_features_file(collection)
     try:
         features = pd.read_hdf(features_file, 'table')
@@ -171,58 +166,22 @@ def _read_collection_features(collection):
 
 
 def _write_collection_features(collection, features):
-    features_file = _collection_features_file(collection)
+    """
+    TODO MAKE WORK WITH DB
+    """
+    features = _collection_features_file(collection)
     features.to_hdf(features_file, 'table')
 
 
-def _get_collection_file(uid):
-    collections = _load_collections()
-    if uid not in collections.keys():
-        raise ValueError('Collection %s not found' % uid)
-
-    folder = collections[uid]['folder']
-    path = os.path.join(util.get_data_dir(), folder)
-
-    return os.path.join(path, 'dsl.yml')
+def _get_project_dir():
+    return get_projects(metadata=True)[get_active_project()]['folder']
 
 
-def _load_collection(uid):
-    """load collection
-
-    """
-    path = _get_collection_file(uid)
-
-    if not os.path.exists(path):
-        return {}
-    
-    with open(path) as f:
-        return yaml.safe_load(f)
+def _load_collection(name):
+    """load collection."""
+    return db.read_data(active_db(), 'collections', name)
 
 
 def _load_collections():
-    """load list of collections
-
-    """
-    path = util.get_collections_index()
-
-    if not os.path.exists(path):
-        return {}
-
-    with open(path) as f:
-        return yaml.safe_load(f)
-
-
-def _write_collection(uid, collection):
-    """write collection
-
-    """
-    with open(_get_collection_file(uid), 'w') as f:
-        yaml.safe_dump(collection, f, default_flow_style=False)
-
-
-def _write_collections(collections):
-    """write list of collections to  file 
-    """
-    path = util.get_collections_index()
-    with open(path, 'w') as f:
-        yaml.safe_dump(collections, f, default_flow_style=False)
+    """load list of collections."""
+    return db.read_all(active_db(), 'collections')
