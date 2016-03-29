@@ -52,6 +52,40 @@ class MongoDriver(object):
 
         return self.coll_conn
         
+    def get_ADH_sites(self, bounding_box=None):
+        
+        self.connect_to_collection("ADH")
+        if bounding_box is None:
+            bounding_box = [-124.7099609, 24.54233398, -66.98701171, 49.36967773]
+
+        returning = []             
+        sites = self.coll_conn.find({"location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}}})
+      
+        for site in sites:
+        
+            item = {}
+            item["id"] = str(site["_id"])
+            item["Site"] = site["name"]
+            item["Report Title"] = site["title of report"]
+            item["Report Location"] = site["physical location"]
+            '''
+            send back the first bit of information
+            item["Study Purpose"] = site["purpose of study"]
+            item["File Server"] = site["file server"]
+            item["Base Mesh Location"] = site["base mesh location"]
+            item["Plan Mesh Location"] = site["plan mesh location"]
+            item["Studies"] = site["studies"]
+            item["Data"] = site["data"]
+            item["Computation Conditions"] = site["computation conditions"]
+            item["Scripts"] = site["scripts"]
+            item["Location"] = site["location"]
+            '''
+            item["latitude"] = site["location"][0]
+            item["longitude"] = site["location"][1]
+            
+            returning.append(item)
+        
+        return returning
         
     def get_MET_sites(self, bounding_box=None):
         
@@ -123,7 +157,7 @@ class MongoDriver(object):
         elif data_type == "MET":
             sites = self.get_MET_sites(bounding_box)
         else :
-            sites = []
+            sites = self.get_ADH_sites(bounding_box)
             
         return sites
     
