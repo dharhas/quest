@@ -7,28 +7,32 @@
 # optionally run tests:
 #   python setup.py test
 
-name: dsl
+name: quest
 
 channels:
-    - ioos
+    - conda-forge
+    - defaults
 
 dependencies:
-    - python=3.4
+    - python=3
+    - fiona
+    - rasterio
     - gdal
-    - fiona>=1.5.1
-    - rasterio>=0.23.0
     - numpy
     - geojson
-    - jsonschema
-    - ulmo>=0.8.1
-    - pyoos
+    - jinja2
+    - json-rpc
+    - ulmo>=0.8.3.2
     - pyyaml
-    - matplotlib>=1.4.0
+    - matplotlib
     - click
     - werkzeug
-    - pymongo=2.8
-    - pip:
-      - json-rpc
-      - jsonrpc-requests
-      - peewee
-      - stevedore
+    - peewee
+    - stevedore
+    - geopandas
+    - distributed
+    - psutil
+    - pint
+    - pony
+    - tornado
+    - pymongo

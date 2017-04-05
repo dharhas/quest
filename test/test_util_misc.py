@@ -1,19 +1,17 @@
-import dsl
+import quest
 import os
 import tempfile
 
-def test_get_dsl_dir():
-    dsl.api.update_settings(config={'BASE_DIR': 'dsl'})
-    assert dsl.util.get_dsl_dir() == 'dsl'
+
+def test_get_quest_dir(reset_projects_dir):
+    assert quest.util.get_quest_dir() == reset_projects_dir['BASE_DIR']
 
 
-def test_get_cache_data_dir():
-    dsl.api.update_settings(config={'BASE_DIR': 'dsl'})
-
-    assert dsl.util.get_cache_dir() == os.path.join('dsl', 'cache')
-    assert dsl.util.get_projects_dir() == os.path.join('dsl', 'projects')
+def test_get_cache_data_dir(reset_projects_dir):
+    assert quest.util.get_cache_dir() == os.path.join(reset_projects_dir['BASE_DIR'], 'cache')
+    assert quest.util.get_projects_dir() == os.path.join(reset_projects_dir['BASE_DIR'], 'projects')
 
     folder = tempfile.gettempdir()
-    dsl.api.update_settings(config={'BASE_DIR': 'dsl', 'CACHE_DIR': folder, 'PROJECTS_DIR': folder})
-    assert dsl.util.get_cache_dir() == folder
-    assert dsl.util.get_projects_dir() == folder
+    quest.api.update_settings(config={'CACHE_DIR': folder, 'PROJECTS_DIR': folder})
+    assert quest.util.get_cache_dir() == folder
+    assert quest.util.get_projects_dir() == folder

@@ -1,0 +1,10 @@
+active_project: project1
+projects:
+  default:
+    folder: default
+  project1:
+    folder: project1
+  project2:
+    folder: project2
+  test_data:
+    folder: test_data
