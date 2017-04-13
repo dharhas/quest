@@ -99,12 +99,11 @@ class MongoDriver(object):
         returning = []             
         sites = self.coll_conn.find({"files.location": {"$within": {"$box": [[bounding_box[1], bounding_box[0]], [bounding_box[3], bounding_box[2]]]}} , "data type":"MET"})
 
-        
         for site in sites:
             for fileItem in site['files']:
                 item = {}
-                item['id'] = str(site['_id'])
-                item['file_format'] = fileItem['file type']
+                item['service_id'] = str(site['_id']) + fileItem['file name']
+                item['file_format'] = fileItem['file format']
                 item['filename'] = fileItem['file name']
                 item['download_url'] = fileItem['file location']
                 item['site'] = site['name']
@@ -120,8 +119,7 @@ class MongoDriver(object):
                 item['display_name'] = item['filename']
                 item['description'] = ''
                 item['reserved'] = item['download_url']
-        
-                returning.append()
+                returning.append(item)
         
         return returning
         
@@ -137,7 +135,7 @@ class MongoDriver(object):
         for site in sites:
             for fileItem in site['files']:
                 item = {}
-                item['id'] = str(site['_id'])
+                item['service_id'] = str(site['_id']) + fileItem['file name']
                 item['file_format'] = fileItem['file format']
                 item['filename'] = fileItem['file name']
                 item['download_url'] = fileItem['file location']
@@ -154,9 +152,7 @@ class MongoDriver(object):
                 item['display_name'] = item['filename']
                 item['description'] = ''
                 item['reserved'] = item['download_url']
-                
-                if len(returning) is 0:
-                    returning.append(item)
+                returning.append(item)
         
         return returning
 
