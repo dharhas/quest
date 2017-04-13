@@ -52,8 +52,16 @@ class ISEPService(SingleFileBase):
         driver = isep_mong.MongoDriver()
         bounding_box = [-124.7099609, 24.54233398, -66.98701171, 49.36967773] 
         features = driver.get_sites_BoundingBox(bounding_box, service.upper())
+                
+        print("Type of features: ") 
+        print(type(features))
+        print("Type of features[0]: ");
+        print(type(features[0]))
+        print("Features:")
+        print(features)
+        
         dfeatures = pd.DataFrame(features)
-        """features = gpd.GeoDataFrame.from_dict(features["features"], orient='index')"""
+        """features = gpd.GeoDataFrame.from_dict(features, orient='index')
         
         return dfeatures
 

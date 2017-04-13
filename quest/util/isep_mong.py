@@ -155,7 +155,8 @@ class MongoDriver(object):
                 item['description'] = ''
                 item['reserved'] = item['download_url']
                 
-                returning.append(item)
+                if len(returning) is 0:
+                    returning.append(item)
         
         return returning
 
@@ -168,7 +169,7 @@ class MongoDriver(object):
         bounding_box : ``None or str,
         comma delimited set of 4 numbers        
         """
-        sites = {}
+        sites = []
         
         if data_type == "LIDAR":
             sites = self.get_LIDAR_sites(bounding_box)
@@ -176,5 +177,5 @@ class MongoDriver(object):
             sites = self.get_MET_sites(bounding_box)
         else :
             sites = self.get_ADH_sites(bounding_box)
-        
+
         return  sites
