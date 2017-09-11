@@ -1,17 +1,16 @@
-"""Functions required run raster filters"""
 from ..base import FilterBase
 from quest import util
-
 from quest.api import get_metadata, new_dataset, update_metadata, new_feature
 from quest.api.projects import active_db
-
 import os
 import rasterio
+import numpy as np
+from rasterio.warp import calculate_default_transform
 
 
-class RstBase(FilterBase):
-    def register(self, name=None):
-        """Register Timeseries
+class RstReprojection(FilterBase):
+    def register(self, name='raster-reprojection'):
+        """Register Raster
 
         """
         self.name = name
@@ -39,7 +38,7 @@ class RstBase(FilterBase):
 
         # get metadata, path etc from first dataset, i.e. assume all datasets
         # are in same folder. This will break if you try and combine datasets
-        # from different service
+        # from different services
 
         orig_metadata = get_metadata(dataset)[dataset]
         src_path = orig_metadata['file_path']
@@ -50,22 +49,28 @@ class RstBase(FilterBase):
         if options is None:
             options ={}
 
+
         if description is None:
             description = 'Raster Filter Applied'
 
-        options['orig_metadata'] = orig_metadata
-
-        #run filter
+        dst_crs = options.get('new_crs')
+        # run filter
         with rasterio.open(src_path) as src:
-            out_image = self._apply(src,options)
-            out_meta = src.profile
-        # save the resulting raster
-        out_meta.update({"dtype": out_image.dtype,
-                        "height": out_image.shape[0],
-                         "width": out_image.shape[1],
-                         "transform": None})
+            profile = src.profile
+
+            dst_transform, dst_width, dst_height = rasterio.warp.calculate_default_transform(src.crs, dst_crs, src.width, src.height, *src.bounds)
+
+            destination = np.empty(src.shape)
+            rasterio.warp.reproject(source=src.read(), destination=destination, src_transform=src.transform, src_crs=src.crs, dst_transform=src.transform, dst_crs=dst_crs, resampling=rasterio.warp.Resampling.nearest)
+
+            # Update destination profile
+            profile.update({
+                "crs": dst_crs,
+                "transform": dst_transform,
+            })
 
 
+        # # save the resulting raster
         cname = orig_metadata['collection']
         feature = new_feature(cname,
                               display_name=display_name, geom_type='Polygon',
@@ -77,13 +82,13 @@ class RstBase(FilterBase):
                                description=description)
 
         prj = os.path.dirname(active_db())
-        dst = os.path.join(prj, cname, new_dset)
+        dst = os.path.join(prj,  cname, new_dset)
         util.mkdir_if_doesnt_exist(dst)
         dst = os.path.join(dst, new_dset+'.tif')
 
-
-        with rasterio.open(dst, "w", **out_meta) as dest:
-            dest.write(out_image)
+        #write out tif file
+        with rasterio.open(dst, 'w', **profile) as dest:
+            dest.write(destination.astype(profile["dtype"]),1)
 
         self.file_path = dst
 
@@ -91,7 +96,6 @@ class RstBase(FilterBase):
             'parameter': orig_metadata['parameter'],
             'datatype': orig_metadata['datatype'],
             'file_format': orig_metadata['file_format'],
-            'unit': orig_metadata['unit']
         }
 
         # update metadata
@@ -104,10 +108,18 @@ class RstBase(FilterBase):
         return {'datasets': new_dset, 'features': feature}
 
     def apply_filter_options(self, fmt, **kwargs):
-        schema = {}
+        if fmt == 'json-schema':
+            properties = {
+                    },
+
+            schema = {
+                    "title": "Reprojection Raster Filter",
+                    "type": "object",
+                    "properties": properties,
+
+                }
+
+        if fmt == 'smtk':
+            schema = ''
 
         return schema
-
-
-    def _apply(self, df, metadata, options):
-        raise NotImplementedError

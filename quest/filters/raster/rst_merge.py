@@ -1,16 +1,16 @@
-"""Functions required run raster filters"""
 from ..base import FilterBase
 from quest import util
-
 from quest.api import get_metadata, new_dataset, update_metadata, new_feature
 from quest.api.projects import active_db
-
 import os
+import sys
+import platform
 import rasterio
+import subprocess
 
 
-class RstBase(FilterBase):
-    def register(self, name=None):
+class RstMerge(FilterBase):
+    def register(self, name='raster-merge'):
         """Register Timeseries
 
         """
@@ -30,41 +30,28 @@ class RstBase(FilterBase):
         }
 
     def _apply_filter(self, datasets, features=None, options=None,
-                     display_name=None, description=None, metadata=None):
+                      display_name=None, description=None, metadata=None):
 
-        if len(datasets) > 1:
-            raise NotImplementedError('This filter can only be applied to a single dataset')
+        if len(datasets) < 2:
+            raise ValueError('There must be at LEAST two datasets for this filter')
 
-        dataset = datasets[0]
+        orig_metadata = get_metadata(datasets[0])[datasets[0]]
+        raster_files = [get_metadata(dataset)[dataset]['file_path'] for dataset in datasets]
 
-        # get metadata, path etc from first dataset, i.e. assume all datasets
-        # are in same folder. This will break if you try and combine datasets
-        # from different service
-
-        orig_metadata = get_metadata(dataset)[dataset]
-        src_path = orig_metadata['file_path']
+        for dataset in datasets:
+            if get_metadata(dataset)[dataset]['parameter'] != orig_metadata['parameter']:
+                raise ValueError('Parameters must match for all datasets')
+            if get_metadata(dataset)[dataset]['unit'] != orig_metadata['unit']:
+                raise ValueError('Units must match for all datasets')
 
         if display_name is None:
             display_name = 'Created by filter {}'.format(self.name)
 
         if options is None:
-            options ={}
+            options = {}
 
         if description is None:
             description = 'Raster Filter Applied'
-
-        options['orig_metadata'] = orig_metadata
-
-        #run filter
-        with rasterio.open(src_path) as src:
-            out_image = self._apply(src,options)
-            out_meta = src.profile
-        # save the resulting raster
-        out_meta.update({"dtype": out_image.dtype,
-                        "height": out_image.shape[0],
-                         "width": out_image.shape[1],
-                         "transform": None})
-
 
         cname = orig_metadata['collection']
         feature = new_feature(cname,
@@ -79,13 +66,26 @@ class RstBase(FilterBase):
         prj = os.path.dirname(active_db())
         dst = os.path.join(prj, cname, new_dset)
         util.mkdir_if_doesnt_exist(dst)
-        dst = os.path.join(dst, new_dset+'.tif')
-
-
-        with rasterio.open(dst, "w", **out_meta) as dest:
-            dest.write(out_image)
+        dst = os.path.join(dst, new_dset + '.tif')
 
         self.file_path = dst
+
+        with rasterio.open(orig_metadata['file_path']) as first_dataset:
+            projection = first_dataset.crs
+            bands = first_dataset.count
+
+        for file in raster_files:
+            if rasterio.open(file).crs != projection:
+                raise ValueError('Projections for all datasets must be the same')
+            if rasterio.open(file).count != bands:
+                raise ValueError('Band count for all datasets must be the same')
+
+        output_vrt = os.path.splitext(dst)[0] + '.vrt'
+
+        subprocess.check_output(['gdalbuildvrt', '-overwrite', output_vrt] + raster_files)
+
+        subprocess.check_output(
+            ['gdalwarp', '-overwrite', output_vrt, dst])
 
         new_metadata = {
             'parameter': orig_metadata['parameter'],
@@ -93,6 +93,8 @@ class RstBase(FilterBase):
             'file_format': orig_metadata['file_format'],
             'unit': orig_metadata['unit']
         }
+
+
 
         # update metadata
         new_metadata.update({
@@ -104,10 +106,16 @@ class RstBase(FilterBase):
         return {'datasets': new_dset, 'features': feature}
 
     def apply_filter_options(self, fmt, **kwargs):
-        schema = {}
+        if fmt == 'json-schema':
+            properties = {},
+
+            schema = {
+                    "title": "Merge Raster Filter",
+                    "type": "object",
+                    "properties": properties,
+                }
+
+        if fmt == 'smtk':
+            schema = ''
 
         return schema
-
-
-    def _apply(self, df, metadata, options):
-        raise NotImplementedError

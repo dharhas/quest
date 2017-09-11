@@ -3,7 +3,9 @@ from .base import WebServiceBase
 from .. import util
 import pandas as pd
 import os
+import datetime
 from ..util.log import logger
+
 BASE_PATH = 'noaa'
 BASE_URL = 'http://coastwatch.pfeg.noaa.gov/erddap/tabledap/'
 
@@ -117,8 +119,6 @@ class NoaaService(WebServiceBase):
             df.index = df['service_id']
             df['display_name'] = df['service_id']
 
-
-
         return df.drop_duplicates()
 
     def _get_parameters(self, service, features=None):
@@ -142,7 +142,7 @@ class NoaaService(WebServiceBase):
 
         return parameters
 
-    def _datasetId_map(self,service,parameter, invert=False):
+    def _datasetId_map(self, service, parameter, invert=False):
 
         if service == 'coops-meteorological':
             dmap = {
@@ -166,10 +166,10 @@ class NoaaService(WebServiceBase):
                 'predictedWL': 'WLTP',
             }
 
-        return dmap[parameter]
+            return dmap[parameter]
 
         if invert:
-            pmap = {v: k for k, v in pmap.items()}
+            return {v: k for k, v in dmap.items()}
 
     def _parameter_map(self, service, invert=False):
         if service == 'ndbc':
@@ -222,14 +222,15 @@ class NoaaService(WebServiceBase):
             end = pd.datetime.now().strftime('%Y-%m-%d')
 
         if start is None:
-            start = pd.to_datetime(end) - pd.datetools.timedelta(days=365)
+            start = pd.to_datetime(end) - datetime.timedelta(days=365)
             start = start.strftime('%Y-%m-%d')
 
         pmap = self._parameter_map(service, invert=True)
         parameter_code = pmap[parameter]
         try:
             if service == 'ndbc':
-                url = 'cwwcNDBCMet.csvp?time,{}&station="{}"&time>={}&time<={}'.format(parameter_code, feature, start, end)
+                url = 'cwwcNDBCMet.csvp?time,{}&station="{}"&time>={}&time<={}'\
+                    .format(parameter_code, feature, start, end)
                 url = BASE_URL + url
                 logger.info('downloading data from %s' % url)
                 data = pd.read_csv(url)
@@ -245,11 +246,12 @@ class NoaaService(WebServiceBase):
 
             if service == 'coops-meteorological':
 
-                start = pd.to_datetime(end) - pd.datetools.timedelta(days=28)
+                start = pd.to_datetime(end) - datetime.timedelta(days=28)
                 start = start.strftime('%Y-%m-%d')
 
                 location = self._datasetId_map(service, parameter_code)
-                url = 'nosCoops{}.csvp?time,{}&stationID="{}"&time>={}&time<={}'.format(location,parameter_code,feature, start, end)
+                url = 'nosCoops{}.csvp?time,{}&stationID="{}"&time>={}&time<={}'\
+                    .format(location, parameter_code, feature, start, end)
                 url = BASE_URL + url
                 logger.info('downloading data from %s' % url)
                 data = pd.read_csv(url)
@@ -269,10 +271,11 @@ class NoaaService(WebServiceBase):
                 else:
                     location=self._datasetId_map(service, parameter_code) + interval
 
-                start = pd.to_datetime(end) - pd.datetools.timedelta(days=28)
+                start = pd.to_datetime(end) - datetime.timedelta(days=28)
                 start = start.strftime('%Y-%m-%d')
 
-                url = 'nosCoops{}.csvp?time,{}&stationID="{}"&time>={}&time<={}&datum="{}"'.format(location,parameter_code,feature, start,end, datum)
+                url = 'nosCoops{}.csvp?time,{}&stationID="{}"&time>={}&time<={}&datum="{}"'\
+                    .format(location, parameter_code, feature, start, end, datum)
                 url = BASE_URL + url
                 logger.info('downloading data from %s' % url)
                 data = pd.read_csv(url)
@@ -286,8 +289,8 @@ class NoaaService(WebServiceBase):
                 data.index = pd.to_datetime(data.index)
                 data.rename(columns={parameter_code: parameter})
 
-            file_path = os.path.join(file_path, BASE_PATH, service)
-            file_path = os.path.join(file_path, dataset)
+            file_path = os.path.join(file_path, BASE_PATH, service, dataset, '{0}.h5'.format(dataset))
+
             metadata = {
                 'file_path': file_path,
                 'file_format': 'timeseries-hdf5',
@@ -371,7 +374,7 @@ class NoaaService(WebServiceBase):
                         "quality": {
                             "type": "string",
                             "description": "quality",
-                            "options": ['Preliminary','Verified'],
+                            "options": ['Preliminary', 'Verified'],
                         },
                         "interval": {
                             "type": "string",
@@ -382,21 +385,21 @@ class NoaaService(WebServiceBase):
                             "type": "string",
                             "description": "time interval",
                             "options": [
-                                        {'DHQ':'Mean Diurnal High Water Inequality'},
-                                        {'DLQ':'Mean Diurnal Low Water Inequality'},
-                                        {'DTL':'Mean Diurnal Tide L0evel'},
-                                        {'GT':'Great Diurnal Range'},
-                                        {'HWI':'Greenwich High Water Interval( in Hours)'},
-                                        {'LWI':'Greenwich Low Water Interval( in Hours)'},
-                                        {'MHHW':'Mean Higher - High Water'},
-                                        {'MHW':'Mean High Water'},
-                                        {'MLLW':'Mean Lower_Low Water'},
-                                        {'MLW':'Mean Low Water'},
-                                        {'MN':'Mean Range of Tide'},
-                                        {'MSL':'Mean Sea Level'},
-                                        {'MTL':'Mean Tide Level'},
-                                        {'NAVD''North American Vertical Datum'},
-                                        {'STND':'Station Datum'},
+                                        {'DHQ': 'Mean Diurnal High Water Inequality'},
+                                        {'DLQ': 'Mean Diurnal Low Water Inequality'},
+                                        {'DTL': 'Mean Diurnal Tide L0evel'},
+                                        {'GT': 'Great Diurnal Range'},
+                                        {'HWI': 'Greenwich High Water Interval( in Hours)'},
+                                        {'LWI': 'Greenwich Low Water Interval( in Hours)'},
+                                        {'MHHW': 'Mean Higher - High Water'},
+                                        {'MHW': 'Mean High Water'},
+                                        {'MLLW': 'Mean Lower_Low Water'},
+                                        {'MLW': 'Mean Low Water'},
+                                        {'MN': 'Mean Range of Tide'},
+                                        {'MSL': 'Mean Sea Level'},
+                                        {'MTL': 'Mean Tide Level'},
+                                        {'NAVD': 'North American Vertical Datum'},
+                                        {'STND': 'Station Datum'},
                                         ]
                         },
                     },

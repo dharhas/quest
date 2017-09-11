@@ -99,6 +99,7 @@ class TsRemoveOutliers(TsBase):
                 "title": "Outlier Timeseries Filter",
                 "type": "object",
                 "properties": properties,
+                "required": ['sigma']
             }
 
         return schema
@@ -116,7 +117,7 @@ class TsUnitConversion(TsBase):
         if 'file_path' in metadata:
             del metadata['file_path']
 
-        path = "/Users/rditllkw/QUEST/data-services-library/quest/filters/timeseries/default_units.txt"
+        path = os.path.join(os.path.dirname(__file__), '..', 'default_units.txt')
         reg = UnitRegistry(path)
         from_units = metadata['unit']
         if '/' in from_units and '/' not in options.get('to_units'):
@@ -134,8 +135,8 @@ class TsUnitConversion(TsBase):
         return df
 
     def apply_filter_options(self, fmt, **kwargs):
-        # if fmt == 'smtk':
-        #     schema = util.build_smtk('filter_options','filter_timeseries_remove_outliers.sbt')
+        if fmt == 'smtk':
+            schema = ''
 
         if fmt == 'json-schema':
             properties = {
@@ -146,7 +147,7 @@ class TsUnitConversion(TsBase):
             }
 
             schema = {
-                "title": "Conversion Timeseries Filter",
+                "title": "Unit Conversion Timeseries Filter",
                 "type": "object",
                 "properties": properties,
                 "required":["to_units"],
