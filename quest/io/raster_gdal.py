@@ -1,4 +1,4 @@
-"""io plugin for timeseries datasets."""
+"""io plugin for raster datasets."""
 
 from .base import IoBase
 import os
