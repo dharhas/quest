@@ -5,7 +5,7 @@ Environmental Simulator Quest
    :target: https://public.git.erdc.dren.mil/ci/projects/7?ref=master
    :alt: Build status of the master branch on gitlab-ci
 
-Python API for Quest
+Python API for Quest.
 
 See *.rst files in the docs folder for documentation
 
