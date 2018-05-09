@@ -81,6 +81,7 @@ def test_add_remove_tasks(api, task_cleanup):
     test_tasks.append(api.long_process(10, 'fourth', async=True))
     assert len(api.get_tasks()) == 4
     api.cancel_tasks(test_tasks[3])
+    sleep(.1) #give status messages some time to update
     assert len(api.get_tasks(filters={'status': 'cancelled'})) == 1
     api.remove_tasks(status='cancelled')
     assert len(api.get_tasks(filters={'status': 'cancelled'})) == 0
