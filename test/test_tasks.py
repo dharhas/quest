@@ -51,9 +51,9 @@ def wait_until_done(api):
 @skip_py2
 def test_launch_tasks(api, task_cleanup):
     test_tasks = [
-        api.long_process(1, 'first', async=True),
-        api.long_process(1, 'second', async=True),
-        api.long_process(1, 'third', async=True),
+        api.long_process(1.011, 'first', async=True),
+        api.long_process(1.012, 'second', async=True),
+        api.long_process(1.013, 'third', async=True),
         ]
 
     if isinstance(api, ModuleType):  # i.e. not using the RPC server
@@ -65,17 +65,17 @@ def test_launch_tasks(api, task_cleanup):
     assert len(tasks) == 3
 
     wait_until_done(api)
-    for task, msg in zip(test_tasks, ['first', 'second', 'third']):
-        assert {'delay': 1, 'msg': msg} == api.get_task(task)['result']
+    for task, delay, msg in zip(test_tasks, [1.011, 1.012, 1.013], ['first', 'second', 'third']):
+        assert {'delay': delay, 'msg': msg} == api.get_task(task)['result']
 
 
 @skip_tasks
 @skip_py2
 def test_add_remove_tasks(api, task_cleanup):
     test_tasks = [
-        api.long_process(1, 'first', async=True),
-        api.long_process(1, 'second', async=True),
-        api.long_process(1, 'third', async=True),
+        api.long_process(1.021, 'first', async=True),
+        api.long_process(1.022, 'second', async=True),
+        api.long_process(1.023, 'third', async=True),
         ]
     assert len(api.get_tasks()) == 3
     test_tasks.append(api.long_process(10, 'fourth', async=True))
@@ -115,7 +115,7 @@ def test_add_remove_tasks(api, task_cleanup):
 @skip_py2
 def test_task_with_exception(api, task_cleanup):
     test_tasks = [
-        api.long_process(1, 'first', async=True),
+        api.long_process(1.031, 'first', async=True),
         long_process_with_exception(1, 'second', async=True),
         api.long_process(1, 'third', async=True),
         ]
@@ -129,9 +129,9 @@ def test_task_with_exception(api, task_cleanup):
 @skip_py2
 def test_get_tasks(api, task_cleanup):
     test_tasks = [
-        api.long_process(1, 'first', async=True),
+        api.long_process(1.041, 'first', async=True),
         long_process_with_exception(1, 'second', async=True),
-        api.long_process(1, 'third', async=True),
+        api.long_process(1.042, 'third', async=True),
     ]
 
     tasks = api.get_tasks(filters={'task_ids': test_tasks[:2]})
